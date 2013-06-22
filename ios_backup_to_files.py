@@ -88,15 +88,16 @@ def fileinfo_str(f, verbose=False):
 	return info
 
 def usage(fp, progname):
-	print >> fp, "Usage:", progname, "backupdir"
+	print >> fp, "Usage:", progname, "[-o outdir] backupdir"
 
-verbose = True
+verbose = False
 if __name__ == '__main__':
-	if len(sys.argv) != 2:
+	if len(sys.argv) != 2 and (len(sys.argv) != 4 or sys.argv[1] != "-o"):
 		usage(sys.stderr, sys.argv[0])
 		quit(21)
 	
-	base_dir = sys.argv[1]
+	base_dir = sys.argv[1] if len(sys.argv) == 2 else sys.argv[3]
+	out_dir = "../ios_backup_to_files_output/" if len(sys.argv) == 2 else sys.argv[2]
 	try:
 		os.chdir(base_dir)
 	except Exception, err:
