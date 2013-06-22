@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+# Credits goes to http://stackoverflow.com/questions/3085153/how-to-parse-the-manifest-mbdb-file-in-an-ios-4-0-itunes-backup
+# for the original script (can read db file and print file system hierarchy)
+
 import sys
 import hashlib
 
