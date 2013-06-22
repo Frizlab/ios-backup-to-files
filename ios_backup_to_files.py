@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-# Credits goes to http://stackoverflow.com/questions/3085153/how-to-parse-the-manifest-mbdb-file-in-an-ios-4-0-itunes-backup
-# for the original script (can read db file and print file system hierarchy)
+# Original script is from http://stackoverflow.com/questions/3085153
 
 import os
 import sys
+import shutil
 import hashlib
 
 mbdx = {}
@@ -87,28 +87,64 @@ def fileinfo_str(f, verbose=False):
 		info = info + ' ' + name + '=' + repr(value)
 	return info
 
+#####
+def treat_file(f, outdir):
+	print "Treating file", f['domain'], "--", f['filename']
+	treated_file = outdir + os.sep + f['domain'] + os.sep + f['filename']
+	if (f['mode'] & 0xE000) == 0x4000:
+		# Treating a dir
+		os.mkdir(treated_file)
+	elif (f['mode'] & 0xE000) == 0xA000:
+		# Treating a link
+		os.symlink(f['linktarget'], treated_file)
+	elif (f['mode'] & 0xE000) == 0x8000:
+		# Treating a file
+		if os.path.lexists(f['fileID']): shutil.copy(f['fileID'], treated_file)
+		else: print >> sys.stderr, "Warning: File with id", f['fileID'], "was not found (output would have been", treated_file + ")"
+	else:
+		print >> sys.stderr, "Unknown file type %04x for %s" % (f['mode'], fileinfo_str(f, False))
+		return False
+
+	# TODO: Support mtime, atime, ctime? (ctime seems not to be possible), userid?, groupid?, mode?
+
+	return True
+
+#####
 def usage(fp, progname):
 	print >> fp, "Usage:", progname, "[-o outdir] backupdir"
+	print >> fp, "Warning: outdir is relative to backupdir"
 
+#####
 verbose = False
 if __name__ == '__main__':
 	if len(sys.argv) != 2 and (len(sys.argv) != 4 or sys.argv[1] != "-o"):
 		usage(sys.stderr, sys.argv[0])
 		quit(21)
-	
+
 	base_dir = sys.argv[1] if len(sys.argv) == 2 else sys.argv[3]
-	out_dir = "../ios_backup_to_files_output/" if len(sys.argv) == 2 else sys.argv[2]
+	out_dir = "../ios_backup_to_files_output" if len(sys.argv) == 2 else sys.argv[2].rstrip('/')
 	try:
 		os.chdir(base_dir)
 	except Exception, err:
 		print >> sys.stderr, "Cannot cd to", base_dir + ". Got error", str(err)
 		quit(42)
-	
+
+	if os.path.lexists(out_dir):
+		try: os.rmdir(out_dir)
+		except:
+			print >> sys.stderr, "Cannot use", out_dir, "as output dir. It already exist."
+			quit (12)
+	os.mkdir(out_dir)
+
 	mbdb = process_mbdb_file("Manifest.mbdb")
-	for offset, fileinfo in mbdb.items():
+	fileinfos = mbdb.items()
+	# Sorts fileinfos by filename length. Avoid problems when creating directories
+	fileinfos.sort(lambda x, y: cmp(len(x[1]['filename']), len(y[1]['filename'])))
+	for offset, fileinfo in fileinfos:
 		if offset in mbdx:
 			fileinfo['fileID'] = mbdx[offset]
 		else:
 			fileinfo['fileID'] = "<nofileID>"
 			print >> sys.stderr, "No fileID found for %s" % fileinfo_str(fileinfo)
-		print fileinfo_str(fileinfo, verbose)
+		treat_file(fileinfo, out_dir)
+#		print fileinfo_str(fileinfo, verbose)
