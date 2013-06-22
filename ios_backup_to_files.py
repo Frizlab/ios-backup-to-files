@@ -2,6 +2,7 @@
 # Credits goes to http://stackoverflow.com/questions/3085153/how-to-parse-the-manifest-mbdb-file-in-an-ios-4-0-itunes-backup
 # for the original script (can read db file and print file system hierarchy)
 
+import os
 import sys
 import hashlib
 
@@ -86,8 +87,22 @@ def fileinfo_str(f, verbose=False):
 		info = info + ' ' + name + '=' + repr(value)
 	return info
 
+def usage(fp, progname):
+	print >> fp, "Usage:", progname, "backupdir"
+
 verbose = True
 if __name__ == '__main__':
+	if len(sys.argv) != 2:
+		usage(sys.stderr, sys.argv[0])
+		quit(21)
+	
+	base_dir = sys.argv[1]
+	try:
+		os.chdir(base_dir)
+	except Exception, err:
+		print >> sys.stderr, "Cannot cd to", base_dir + ". Got error", str(err)
+		quit(42)
+	
 	mbdb = process_mbdb_file("Manifest.mbdb")
 	for offset, fileinfo in mbdb.items():
 		if offset in mbdx:
